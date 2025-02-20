@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Detection in Image with Coco-SSD</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #img {
+            width: 80%;
+            border: 2px solid #ddd;
+            margin: 20px auto;
+        }
+        .predictions {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .prediction {
+            margin: 10px;
+            padding: 10px;
+            background-color: #f4f4f4;
+            border-radius: 5px;
+        }
+        #upload-container {
+            margin: 20px;
+        }
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none; /* Prevent interaction with canvas */
+        }
+    </style>
+</head>
+<body>
+    <h1>Object Detection in Image</h1>
+
+    <!-- Upload Image -->
+    <div id="upload-container">
+        <input type="file" id="image-upload" accept="image/*">
+    </div>
+
+    <!-- Display the uploaded image -->
+    <div style="position: relative;">
+        <img id="img" src="" alt="Uploaded Image" style="display: none;"/>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="predictions" id="predictions"></div>
+
+    <script>
+        const img = document.getElementById('img');
+        const canvas = document.getElementById('canvas');
+        const predictionsContainer = document.getElementById('predictions');
+        const imageUpload = document.getElementById('image-upload');
+
+        // Load the Coco-SSD model
+        cocoSsd.load().then(model => {
+            imageUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+
+                // Check if a file is selected
+                if (file) {
+                    const reader = new FileReader();
+
+                    reader.onload = function(e) {
+                        // Set the uploaded image as the source
+                        img.src = e.target.result;
+                        img.style.display = 'block'; // Display the image
+
+                        // Wait until the image is loaded and perform detection
+                        img.onload = function() {
+                            // Resize canvas to match image size
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+
+                            // Detect objects in the uploaded image
+                            model.detect(img).then(predictions => {
+                                // Clear previous predictions
+                                predictionsContainer.innerHTML = '';
+                                
+                                // Draw rectangles on canvas for each detected object
+                                const ctx = canvas.getContext('2d');
+                                ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas before drawing new rectangles
+                                
+                                predictions.forEach(prediction => {
+                                    const { class: label, score, bbox } = prediction;
+                                    const confidence = (score * 100).toFixed(2);
+                                    const [top, left, bottom, right] = bbox;
+
+                                    // Draw rectangle on canvas
+                                    ctx.beginPath();
+                                    ctx.rect(left, top, right - left, bottom - top);
+                                    ctx.lineWidth = 4;
+                                    ctx.strokeStyle = 'green'; // Color for the bounding box
+                                    ctx.fillStyle = 'green';
+                                    ctx.stroke();
+                                    ctx.fillText(`${label} (${confidence}%)`, left + 5, top > 10 ? top - 5 : 10); // Draw label with a small offset
+
+                                    // Create a new div to display each prediction
+                                    const predictionElement = document.createElement('div');
+                                    predictionElement.classList.add('prediction');
+                                    predictionElement.innerHTML = `
+                                        <strong>Object:</strong> ${label}<br>
+                                        <strong>Confidence:</strong> ${confidence}%<br>
+                                        <strong>Bounding Box:</strong> [Top: ${top.toFixed(2)}, Left: ${left.toFixed(2)}, Bottom: ${bottom.toFixed(2)}, Right: ${right.toFixed(2)}]<br>
+                                    `;
+
+                                    // Append the prediction element to the container
+                                    predictionsContainer.appendChild(predictionElement);
+                                });
+
+                                // Log the predictions in the console
+                                console.log('Predictions: ', predictions);
+                            }).catch(err => {
+                                console.error('Error during detection:', err);
+                            });
+                        };
+                    };
+
+                    // Read the image file
+                    reader.readAsDataURL(file);
+                }
+            });
+        }).catch(err => {
+            console.error('Error loading Coco-SSD model:', err);
+        });
+    </script>
+</body>
+</html>

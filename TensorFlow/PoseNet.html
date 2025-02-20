@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PoseNet Real-Time Pose Detection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #video {
+            display: block;
+            margin: 20px auto;
+            border: 2px solid #ddd;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">PoseNet Real-Time Pose Detection</h1>
+    <video id="video" width="640" height="480" autoplay></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+
+    <script>
+        let video;
+        let net;
+        let canvas;
+        let ctx;
+
+        async function setup() {
+            try {
+                // Load PoseNet model
+                net = await posenet.load();
+                console.log("PoseNet model loaded.");
+
+                // Set up the webcam feed
+                video = document.getElementById('video');
+                await setupWebcam();
+
+                // Set up the canvas to draw the keypoints
+                canvas = document.getElementById('canvas');
+                ctx = canvas.getContext('2d');
+
+                // Start the pose detection
+                detectPose();
+            } catch (error) {
+                console.error("Error loading PoseNet model or webcam:", error);
+            }
+        }
+
+        // Set up webcam feed
+        async function setupWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: true
+                });
+                video.srcObject = stream;
+            } catch (error) {
+                console.error("Error accessing webcam:", error);
+            }
+        }
+
+        // Detect human poses in the webcam video feed
+        async function detectPose() {
+            const pose = await net.estimateSinglePose(video, {
+                flipHorizontal: false
+            });
+
+            // Clear the canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw the keypoints on the canvas
+            drawPose(pose);
+
+            // Call detectPose every frame
+            requestAnimationFrame(detectPose);
+        }
+
+        // Draw the pose keypoints on the canvas
+        function drawPose(pose) {
+            const keypoints = pose.keypoints;
+
+            // Draw the keypoints
+            keypoints.forEach(point => {
+                if (point.score > 0.5) {  // Only draw keypoints with high confidence
+                    ctx.beginPath();
+                    ctx.arc(point.position.x, point.position.y, 5, 0, 2 * Math.PI);
+                    ctx.fillStyle = 'aqua';
+                    ctx.fill();
+                }
+            });
+
+            // Draw the skeleton (lines connecting keypoints)
+            const adjacentKeyPoints = posenet.getAdjacentKeyPoints(keypoints, 0.5);
+            adjacentKeyPoints.forEach(([keypoint1, keypoint2]) => {
+                ctx.beginPath();
+                ctx.moveTo(keypoint1.position.x, keypoint1.position.y);
+                ctx.lineTo(keypoint2.position.x, keypoint2.position.y);
+                ctx.strokeStyle = 'aqua';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+
+        // Initialize the application
+        setup();
+    </script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlazePose Detection</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #333;
+    }
+    #canvas-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      border: 2px solid white;
+    }
+    video {
+      transform: scaleX(-1); /* Flip video horizontally */
+      width: 640px;
+      height: 480px;
+      border: 2px solid white;
+      border-radius: 10px;
+    }
+    #stats {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="stats"></div>
+  <div id="canvas-wrapper">
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="output"></canvas>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js"></script>
+
+  <script>
+    async function setupCamera() {
+      const videoElement = document.getElementById('video');
+      const canvas = document.getElementById('output');
+      const context = canvas.getContext('2d');
+
+      // Get user media for video
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 640, height: 480 },
+      });
+
+      videoElement.srcObject = stream;
+
+      // Wait until the video is loaded and ready
+      await new Promise((resolve) => {
+        videoElement.onloadedmetadata = () => {
+          resolve();
+        };
+      });
+
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+
+      return videoElement;
+    }
+
+    async function detectPose(videoElement) {
+      // Load BlazePose model
+      const model = poseDetection.SupportedModels.BlazePose;
+      const detectorConfig = {
+        runtime: 'tfjs', // Use TensorFlow.js runtime
+        modelType: 'full', // Use full model for high accuracy
+      };
+
+      const detector = await poseDetection.createDetector(model, detectorConfig);
+      const stats = new Stats();
+      document.body.appendChild(stats.dom);
+
+      async function detect() {
+        stats.begin();
+
+        const poses = await detector.estimatePoses(videoElement);
+        
+        // Debugging: log the poses to check if detection is working
+        console.log('Detected Poses:', poses);
+
+        const canvas = document.getElementById('output');
+        const context = canvas.getContext('2d');
+
+        // Clear previous frame
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (poses.length > 0) {
+          // If poses are detected, draw keypoints and skeleton
+          poses.forEach((pose) => {
+            // Draw keypoints
+            pose.keypoints.forEach((keypoint) => {
+              if (keypoint.score >= 0.5) { // Only draw keypoints with high confidence
+                context.beginPath();
+                context.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
+                context.fillStyle = 'red';
+                context.fill();
+              }
+            });
+
+            // Draw the skeleton (lines connecting keypoints)
+            drawSkeleton(context, pose.keypoints);
+            
+            // Draw bounding box around the detected body
+            drawBoundingBox(context, pose.keypoints);
+          });
+        }
+
+        stats.end();
+
+        requestAnimationFrame(detect);
+      }
+
+      detect();
+    }
+
+    // Draw the skeleton connecting keypoints
+    function drawSkeleton(context, keypoints) {
+      const skeleton = [
+        [0, 1], [1, 2], [2, 3], [3, 4], [5, 6], [6, 7], [7, 8], [8, 9],
+        [9, 10], [11, 12], [12, 13], [13, 14], [14, 15], [16, 17], [17, 18],
+        [18, 19], [19, 20], [5, 11], [6, 12], [7, 13], [8, 14], [9, 15],
+        [10, 16], [11, 17], [12, 18], [13, 19], [14, 20]
+      ];
+
+      context.beginPath();
+      skeleton.forEach(([startIdx, endIdx]) => {
+        const start = keypoints[startIdx];
+        const end = keypoints[endIdx];
+        if (start.score >= 0.5 && end.score >= 0.5) {
+          context.moveTo(start.x, start.y);
+          context.lineTo(end.x, end.y);
+        }
+      });
+
+      context.strokeStyle = 'blue';
+      context.lineWidth = 2;
+      context.stroke();
+    }
+
+    // Draw bounding box around the body
+    function drawBoundingBox(context, keypoints) {
+      const xValues = keypoints.map(point => point.x);
+      const yValues = keypoints.map(point => point.y);
+
+      const minX = Math.min(...xValues);
+      const maxX = Math.max(...xValues);
+      const minY = Math.min(...yValues);
+      const maxY = Math.max(...yValues);
+
+      context.beginPath();
+      context.rect(minX, minY, maxX - minX, maxY - minY);
+      context.lineWidth = 3;
+      context.strokeStyle = 'green';
+      context.stroke();
+    }
+
+    // Initialize and start the detection process
+    setupCamera().then((videoElement) => {
+      detectPose(videoElement);
+    });
+  </script>
+</body>
+</html>

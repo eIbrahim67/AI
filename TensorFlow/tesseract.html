@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to Text with TensorFlow.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        input[type="file"] {
+            margin: 20px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Extract Text from Image</h1>
+    
+    <input type="file" id="image-upload" onchange="handleImage()" accept="image/*">
+    <br>
+    <img id="uploaded-image" src="" alt="Uploaded Image" style="display:none;">
+    <div id="result">Text from image will appear here...</div>
+    
+    <script>
+        // Handle the uploaded image and process it
+        function handleImage() {
+            const file = document.getElementById('image-upload').files[0];
+            if (!file) {
+                return;
+            }
+
+            // Show the uploaded image
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const imgElement = document.getElementById('uploaded-image');
+                imgElement.src = e.target.result;
+                imgElement.style.display = "block";
+                processImage(imgElement);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Use Tesseract.js to extract text from the uploaded image
+        function processImage(imgElement) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = "Processing... please wait.";
+
+            // Run Tesseract OCR
+            Tesseract.recognize(
+                imgElement.src,
+                'eng', // Language (you can change to other languages like 'spa' for Spanish)
+                {
+                    logger: (m) => console.log(m), // Logs the OCR progress
+                }
+            ).then(({ data: { text } }) => {
+                resultDiv.innerHTML = `Extracted Text: <br><pre>${text}</pre>`;
+            }).catch((error) => {
+                resultDiv.innerHTML = `Error: ${error.message}`;
+            });
+        }
+    </script>
+</body>
+</html>

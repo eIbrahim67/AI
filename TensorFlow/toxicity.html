@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentiment Analysis with TensorFlow.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/toxicity"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sentiment Analysis using TensorFlow.js</h1>
+    
+    <textarea id="text-input" rows="5" cols="40" placeholder="Type your text here"></textarea>
+    <br>
+    <button onclick="analyzeSentiment()">Analyze Sentiment</button>
+    
+    <div id="result"></div>
+    
+    <script>
+        let model;
+        
+        // Load the toxicity model
+        async function loadModel() {
+            model = await toxicity.load();
+            console.log('Model loaded');
+        }
+        
+        // Analyze the sentiment of the input text
+        async function analyzeSentiment() {
+            const text = document.getElementById('text-input').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!text) {
+                resultDiv.innerHTML = "Please enter some text!";
+                return;
+            }
+
+            // Analyze the text using the model
+            const predictions = await model.classify(text);
+            
+            // Check for positive, negative, or neutral sentiment based on 'toxicity' label
+            const toxicityPrediction = predictions.find(p => p.label === 'toxicity');
+            const sentiment = toxicityPrediction.results[0].match ? 'Negative' : 'Positive';
+            
+            // Display the result
+            resultDiv.innerHTML = `Sentiment: ${sentiment}`;
+        }
+
+        // Load the model when the page is loaded
+        window.onload = loadModel;
+    </script>
+</body>
+</html>

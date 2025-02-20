@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Classifier with TensorFlow.js</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            margin-top: 20px;
+        }
+        input[type="file"] {
+            margin-top: 20px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Classifier using TensorFlow.js</h1>
+    
+    <input type="file" id="image-upload" accept="image/*">
+    <br>
+    <img id="image" src="" alt="" style="display: none;">
+    
+    <div id="result"></div>
+    
+    <script>
+        let model;
+        
+        // Load the MobileNet model
+        async function loadModel() {
+            model = await mobilenet.load();
+            console.log('Model loaded');
+        }
+        
+        // Classify the uploaded image
+        async function classifyImage() {
+            const image = document.getElementById('image');
+            const resultDiv = document.getElementById('result');
+            
+            // Check if image exists
+            if (!image.src) {
+                resultDiv.innerHTML = "Please upload an image first!";
+                return;
+            }
+            
+            // Classify the image using the model
+            const predictions = await model.classify(image);
+            
+            // Show the top prediction
+            resultDiv.innerHTML = `Prediction: ${predictions[0].className} <br> Probability: ${predictions[0].probability.toFixed(4)}`;
+        }
+
+        // Handle image upload
+        document.getElementById('image-upload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const image = document.getElementById('image');
+                image.src = e.target.result;
+                image.style.display = 'block';  // Make the image visible
+                // After the image is loaded, classify it
+                image.onload = classifyImage;
+            };
+            
+            if (file) {
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Load the model when the page is loaded
+        window.onload = loadModel;
+    </script>
+</body>
+</html>
